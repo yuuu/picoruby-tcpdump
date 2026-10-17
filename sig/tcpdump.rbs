@@ -1,0 +1,63 @@
+module Tcpdump
+  AUTOSTART: bool
+  DEFAULT_PATH: String
+  DEFAULT_SNAPLEN: Integer
+  DEFAULT_BUFFER_SIZE: Integer
+  DEFAULT_MAX_SIZE: Integer
+  DEFAULT_INTERVAL: Integer
+  DEFAULT_PRIORITY: Integer
+  GLOBAL_HEADER_SIZE: Integer
+  RECORD_HEADER_SIZE: Integer
+  CHUNK_SIZE: Integer
+
+  type stats_t = {
+    captured: Integer,
+    dropped: Integer,
+    bytes: Integer,
+    written: Integer,
+    pending: Integer,
+    netifs: Integer,
+    capturing: bool,
+    full: bool,
+    path: String,
+    snaplen: Integer,
+    buffer_size: Integer,
+    max_size: Integer
+  }
+
+  @path: String
+  @snaplen: Integer
+  @max_size: Integer
+  @buffer_size: Integer
+  @interval: Integer
+  @written: Integer
+  @header_written: bool
+  @full: bool
+  @task: Task?
+
+  def self.start: (?path: String?, ?snaplen: Integer?, ?max_size: Integer?, ?buffer_size: Integer?, ?interval: Integer?) -> true
+  def self.stop: () -> true
+  def self.flush: () -> Integer
+  def self.stats: () -> stats_t
+  def self.capturing?: () -> bool
+  def self.full?: () -> bool
+  def self.path: () -> String
+  def self.interval: () -> Integer
+  def self.attach: () -> Integer
+  # POSIX (host) build only: feed a raw Ethernet frame to the capture path.
+  def self.inject: (String frame) -> bool
+
+  private def self.flush_locked: () -> Integer
+  private def self.write_header: () -> bool
+  private def self.start_flusher: () -> void
+  private def self.previous_path: (String path) -> String
+  private def self.__start: (Integer snaplen, Integer buffer_size) -> bool
+  private def self.__stop: () -> nil
+  private def self.__pending: () -> Integer
+  private def self.__drain: (Integer max_bytes) -> String
+  private def self.__discard: () -> nil
+  private def self.__stats: () -> [Integer, Integer, Integer, Integer, Integer, Integer]
+  private def self.__header: (Integer snaplen) -> String
+  private def self.__flush_lock: () -> bool
+  private def self.__flush_unlock: () -> nil
+end

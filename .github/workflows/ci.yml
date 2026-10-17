@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A known-good PicoRuby commit. The "head" entry also builds against
+# PicoRuby's default branch, without failing the workflow, so a breaking
+# upstream change shows up before the pin is bumped.
+env:
+  PICORUBY_REF: 823f6ad574a0cc61b0b439f565d2901fcb383d40
+
+jobs:
+  picoruby:
+    name: picoruby (host) / ${{ matrix.upstream }}
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.upstream == 'head' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        upstream: [pinned, head]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/checkout@v5
+        with:
+          repository: picoruby/picoruby
+          ref: ${{ matrix.upstream == 'pinned' && env.PICORUBY_REF || '' }}
+          path: vendor/picoruby
+
+      # Only what a POSIX host build needs -- a recursive init would also pull
+      # pico-sdk (and its btstack/tinyusb/mbedtls/... submodules).
+      - name: Fetch PicoRuby submodules
+        working-directory: vendor/picoruby
+        run: |
+          git submodule update --init --depth 1 \
+            mrbgems/mruby-bin-mrbc \
+            mrbgems/mruby-compiler \
+            mrbgems/picoruby-mruby/lib/mruby \
+            mrbgems/picoruby-machine/lib/estalloc \
+            mrbgems/picoruby-regexp_light/lib/regex_light
+          git -C mrbgems/mruby-compiler submodule update --init --depth 1
+          git -C mrbgems/picoruby-mruby/lib/mruby submodule update --init --depth 1 \
+            mrbgems/mruby-compiler/lib/prism
+
+      - name: Install OpenSSL headers
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Build and test
+        run: rake test
+        env:
+          TCPDUMP_PICORUBY_DIR: vendor/picoruby
